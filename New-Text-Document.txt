@@ -1,0 +1,237 @@
+CREATE TABLE account (
+    account_no     NUMBER(8) NOT NULL,
+    user_name      VARCHAR2(20) NOT NULL,
+    password       VARCHAR2(20) NOT NULL,
+    user_user_id   NUMBER(8) NOT NULL
+);
+
+CREATE UNIQUE INDEX account__idx ON
+    account ( user_user_id ASC );
+
+ALTER TABLE account ADD CONSTRAINT account_pk PRIMARY KEY ( account_no );
+
+CREATE TABLE buy (
+    buyer_user_id    NUMBER(8) NOT NULL,
+    media_media_id   NUMBER NOT NULL
+);
+
+ALTER TABLE buy ADD CONSTRAINT buy_pk PRIMARY KEY ( buyer_user_id,media_media_id );
+
+CREATE TABLE buyer (
+    user_id              NUMBER(8) NOT NULL,
+    payment_method       VARCHAR2(20) NOT NULL,
+    payment_payment_id   NUMBER(8) NOT NULL
+);
+
+CREATE UNIQUE INDEX buyer__idx ON
+    buyer ( payment_payment_id ASC );
+
+ALTER TABLE buyer ADD CONSTRAINT buyer_pk PRIMARY KEY ( user_id );
+
+CREATE TABLE feedback (
+    feedback_no          NUMBER(8) NOT NULL,
+    "comment"            VARCHAR2(200),
+    user_user_id         NUMBER(8) NOT NULL,
+    product_product_id   NUMBER(8) NOT NULL
+);
+
+ALTER TABLE feedback ADD CONSTRAINT feedback_pk PRIMARY KEY ( feedback_no );
+
+CREATE TABLE media (
+    quantiti             NUMBER(3) NOT NULL,
+    offer_date           DATE NOT NULL,
+    media_id             NUMBER NOT NULL,
+    product_product_id   NUMBER(8) NOT NULL
+);
+
+ALTER TABLE media ADD CONSTRAINT media_pk PRIMARY KEY ( media_id );
+
+CREATE TABLE payment (
+    payment_id       NUMBER(8) NOT NULL,
+    ammont           NUMBER(8,2) NOT NULL,
+    type             VARCHAR2(20),
+    buyer_user_id    NUMBER(8) NOT NULL,
+    seller_user_id   NUMBER(8) NOT NULL
+);
+
+CREATE UNIQUE INDEX payment__idx ON
+    payment ( buyer_user_id ASC );
+
+CREATE UNIQUE INDEX payment__idxv1 ON
+    payment ( seller_user_id ASC );
+
+ALTER TABLE payment ADD CONSTRAINT payment_pk PRIMARY KEY ( payment_id );
+
+CREATE TABLE product (
+    product_id         NUMBER(8) NOT NULL,
+    product_name       VARCHAR2(50) NOT NULL,
+    price              NUMBER(8,2) NOT NULL,
+    description        VARCHAR2(200),
+    "used/brand_new"   VARCHAR2(10) NOT NULL
+);
+
+ALTER TABLE product ADD CONSTRAINT product_pk PRIMARY KEY ( product_id );
+
+CREATE TABLE sell (
+    seller_user_id   NUMBER(8) NOT NULL,
+    media_media_id   NUMBER NOT NULL
+);
+
+ALTER TABLE sell ADD CONSTRAINT sell_pk PRIMARY KEY ( seller_user_id,media_media_id );
+
+CREATE TABLE seller (
+    user_id              NUMBER(8) NOT NULL,
+    shipment_method      VARCHAR2(20) NOT NULL,
+    payment_payment_id   NUMBER(8) NOT NULL
+);
+
+CREATE UNIQUE INDEX seller__idx ON
+    seller ( payment_payment_id ASC );
+
+ALTER TABLE seller ADD CONSTRAINT seller_pk PRIMARY KEY ( user_id );
+
+CREATE TABLE "User" (
+    user_id                        NUMBER(8) NOT NULL,
+    name                           VARCHAR2(30) NOT NULL,
+    user_type                      VARCHAR2(6) NOT NULL,
+    date_of_birth                  DATE NOT NULL,
+    address                        VARCHAR2(50),
+    city                           VARCHAR2(15) NOT NULL,
+    "contact_info(mobile/email)"   VARCHAR2(50) NOT NULL,
+    account_account_no             NUMBER(8) NOT NULL
+);
+
+ALTER TABLE "User" ADD CONSTRAINT ch_inh_user CHECK (
+    user_type IN (
+        'Buyer','User','seller'
+    )
+);
+
+CREATE UNIQUE INDEX user__idx ON
+    "User" ( account_account_no ASC );
+
+ALTER TABLE "User" ADD CONSTRAINT user_pk PRIMARY KEY ( user_id );
+
+ALTER TABLE account ADD CONSTRAINT account_user_fk FOREIGN KEY ( user_user_id )
+    REFERENCES "User" ( user_id );
+
+ALTER TABLE buy ADD CONSTRAINT buy_buyer_fk FOREIGN KEY ( buyer_user_id )
+    REFERENCES buyer ( user_id );
+
+ALTER TABLE buy ADD CONSTRAINT buy_media_fk FOREIGN KEY ( media_media_id )
+    REFERENCES media ( media_id );
+
+ALTER TABLE buyer ADD CONSTRAINT buyer_payment_fk FOREIGN KEY ( payment_payment_id )
+    REFERENCES payment ( payment_id );
+
+ALTER TABLE buyer ADD CONSTRAINT buyer_user_fk FOREIGN KEY ( user_id )
+    REFERENCES "User" ( user_id );
+
+ALTER TABLE feedback ADD CONSTRAINT feedback_product_fk FOREIGN KEY ( product_product_id )
+    REFERENCES product ( product_id );
+
+ALTER TABLE feedback ADD CONSTRAINT feedback_user_fk FOREIGN KEY ( user_user_id )
+    REFERENCES "User" ( user_id );
+
+ALTER TABLE media ADD CONSTRAINT media_product_fk FOREIGN KEY ( product_product_id )
+    REFERENCES product ( product_id );
+
+ALTER TABLE payment ADD CONSTRAINT payment_buyer_fk FOREIGN KEY ( buyer_user_id )
+    REFERENCES buyer ( user_id );
+
+ALTER TABLE payment ADD CONSTRAINT payment_seller_fk FOREIGN KEY ( seller_user_id )
+    REFERENCES seller ( user_id );
+
+ALTER TABLE sell ADD CONSTRAINT sell_media_fk FOREIGN KEY ( media_media_id )
+    REFERENCES media ( media_id );
+
+ALTER TABLE sell ADD CONSTRAINT sell_seller_fk FOREIGN KEY ( seller_user_id )
+    REFERENCES seller ( user_id );
+
+ALTER TABLE seller ADD CONSTRAINT seller_payment_fk FOREIGN KEY ( payment_payment_id )
+    REFERENCES payment ( payment_id );
+
+ALTER TABLE seller ADD CONSTRAINT seller_user_fk FOREIGN KEY ( user_id )
+    REFERENCES "User" ( user_id );
+
+ALTER TABLE "User" ADD CONSTRAINT user_account_fk FOREIGN KEY ( account_account_no )
+    REFERENCES account ( account_no );
+
+CREATE OR REPLACE TRIGGER arc_fkarc_1_buyer BEFORE
+    INSERT OR UPDATE OF user_id ON buyer
+    FOR EACH ROW
+DECLARE
+    d   VARCHAR2(6);
+BEGIN
+    SELECT
+        a.user_type
+    INTO
+        d
+    FROM
+        "User" a
+    WHERE
+        a.user_id =:new.user_id;
+
+    IF (
+            d IS NULL
+        OR d <> 'Buyer'
+    ) THEN
+        raise_application_error(
+            -20223,
+        'FK Buyer_User_FK in Table Buyer violates Arc constraint on Table "User" - discriminator column user_type doesn''t have value ''Buyer'''
+);
+    END IF;
+
+EXCEPTION
+    WHEN no_data_found THEN
+        NULL;
+    WHEN OTHERS THEN
+        RAISE;
+END;
+/
+
+CREATE OR REPLACE TRIGGER arc_fkarc_1_seller BEFORE
+    INSERT OR UPDATE OF user_id ON seller
+    FOR EACH ROW
+DECLARE
+    d   VARCHAR2(6);
+BEGIN
+    SELECT
+        a.user_type
+    INTO
+        d
+    FROM
+        "User" a
+    WHERE
+        a.user_id =:new.user_id;
+
+    IF (
+            d IS NULL
+        OR d <> 'seller'
+    ) THEN
+        raise_application_error(
+            -20223,
+        'FK seller_User_FK in Table seller violates Arc constraint on Table "User" - discriminator column user_type doesn''t have value ''seller'''
+);
+    END IF;
+
+EXCEPTION
+    WHEN no_data_found THEN
+        NULL;
+    WHEN OTHERS THEN
+        RAISE;
+END;
+/
+
+CREATE SEQUENCE media_media_id_seq START WITH 1 NOCACHE ORDER;
+
+CREATE OR REPLACE TRIGGER media_media_id_trg BEFORE
+    INSERT ON media
+    FOR EACH ROW
+    WHEN (
+        new.media_id IS NULL
+    )
+BEGIN
+    :new.media_id := media_media_id_seq.nextval;
+END;
+/
